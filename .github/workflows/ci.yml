@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm provenance on tag builds
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+
+      # A clean wasm build (emsdk, Ceres, COLMAP) takes ~10 min, so it only runs
+      # when the native sources, patches or build scripts change.
+      - id: wasm
+        uses: actions/cache/restore@v4
+        with:
+          path: wasm
+          key: wasm-${{ hashFiles('scripts/build-wasm.mjs', 'native/**') }}
+
+      - if: steps.wasm.outputs.cache-hit != 'true'
+        run: sudo apt-get install -y --no-install-recommends libboost-dev && npm run build:wasm
+
+      - if: steps.wasm.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: wasm
+          key: ${{ steps.wasm.outputs.cache-primary-key }}
+
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm pack --dry-run
+
+      # Tags vX.Y.Z publish to npm (with provenance) when the NPM_TOKEN secret is set.
+      - if: startsWith(github.ref, 'refs/tags/v') && env.NODE_AUTH_TOKEN != ''
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+

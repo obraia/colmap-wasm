@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>colmap-wasm example</title>
+    <style>
+      body { font: 14px/1.5 system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+      fieldset { border: 1px solid #ccc; border-radius: 6px; margin: 1rem 0; }
+      pre { background: #f4f4f4; padding: 0.75rem; border-radius: 6px; max-height: 320px; overflow: auto; white-space: pre-wrap; }
+      button { padding: 0.4rem 1rem; }
+    </style>
+  </head>
+  <body>
+    <h1>colmap-wasm</h1>
+    <p>Pick the frames of an orbit video (or any photos of the same size). Everything runs in this tab: COLMAP's SIFT and global mapper in WebAssembly, SIFT matching on WebGPU.</p>
+    <fieldset>
+      <label>Images <input id="images" type="file" accept="image/*" multiple /></label>
+      <p>
+        <label><input id="sequential" type="checkbox" checked /> Ordered sequence (video frames), window</label>
+        <input id="window" type="number" value="8" min="1" max="64" style="width: 4em" />
+        <label><input id="loop" type="checkbox" /> closed loop (360°)</label>
+      </p>
+      <button id="run" disabled>Estimate cameras</button>
+      <button id="download" disabled>Download sparse/0</button>
+    </fieldset>
+    <pre id="log"></pre>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

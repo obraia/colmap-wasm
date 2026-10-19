@@ -1,0 +1,27 @@
+diff --git a/src/colmap/optim/sparse_cholesky.h b/src/colmap/optim/sparse_cholesky.h
+index 6dab1a4..2ddfcb8 100644
+--- a/src/colmap/optim/sparse_cholesky.h
++++ b/src/colmap/optim/sparse_cholesky.h
+@@ -29,7 +29,9 @@
+ 
+ #pragma once
+ 
++#ifndef COLMAP_NO_CHOLMOD
+ #include <Eigen/CholmodSupport>
++#endif
+ #include <Eigen/SparseCholesky>
+ #include <Eigen/SparseCore>
+ 
+@@ -53,7 +55,12 @@ class SparseCholeskyWithFallbackSolver {
+   bool Solve(const Eigen::VectorXd& b, Eigen::VectorXd* x) const;
+ 
+  private:
++#ifdef COLMAP_NO_CHOLMOD
++  // No SuiteSparse (e.g. WebAssembly): Eigen's simplicial LLT, same interface.
++  Eigen::SimplicialLLT<Eigen::SparseMatrix<double>> supernodal_;
++#else
+   Eigen::CholmodSupernodalLLT<Eigen::SparseMatrix<double>> supernodal_;
++#endif
+   Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> ldlt_;
+   bool use_ldlt_ = false;
+ };

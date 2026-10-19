@@ -1,0 +1,74 @@
+diff --git a/src/colmap/util/threading.cc b/src/colmap/util/threading.cc
+index 78b5225..9f22f4f 100644
+--- a/src/colmap/util/threading.cc
++++ b/src/colmap/util/threading.cc
+@@ -184,7 +184,11 @@ void Thread::RunFunc() {
+ 
+ ThreadPool::ThreadPool(const int num_threads)
+     : stopped_(false), num_active_workers_(0) {
++#ifdef COLMAP_INLINE_THREAD_POOL
++  const int num_effective_threads = 0;
++#else
+   const int num_effective_threads = GetEffectiveNumThreads(num_threads);
++#endif
+   for (int index = 0; index < num_effective_threads; ++index) {
+     std::function<void(void)> worker =
+         std::bind(&ThreadPool::WorkerFunc, this, index);
+@@ -293,6 +297,9 @@ std::thread::id ThreadPool::GetThreadId() const {
+ }
+ 
+ int ThreadPool::GetThreadIndex() {
++#ifdef COLMAP_INLINE_THREAD_POOL
++  return 0;
++#endif
+   std::unique_lock<std::mutex> lock(mutex_);
+   return thread_id_to_index_.at(GetThreadId());
+ }
+diff --git a/src/colmap/util/threading.h b/src/colmap/util/threading.h
+index 5965002..b0ea858 100644
+--- a/src/colmap/util/threading.h
++++ b/src/colmap/util/threading.h
+@@ -228,6 +228,11 @@ class AggregateException : public std::exception {
+ // Exceptions thrown from the tasks are caught and propagated to the caller
+ // through both the returned future and the Wait() call. Wait() throws an
+ // AggregateException containing all task exceptions at once.
++#if defined(__EMSCRIPTEN__) && !defined(__EMSCRIPTEN_PTHREADS__)
++// WebAssembly without threads: the pool runs each task when it is added.
++#define COLMAP_INLINE_THREAD_POOL
++#endif
++
+ class ThreadPool {
+  public:
+   static const int kMaxNumThreads = -1;
+@@ -363,7 +368,12 @@ int GetEffectiveNumThreads(int num_threads);
+ // Implementation
+ ////////////////////////////////////////////////////////////////////////////////
+ 
+-size_t ThreadPool::NumThreads() const { return workers_.size(); }
++size_t ThreadPool::NumThreads() const {
++#ifdef COLMAP_INLINE_THREAD_POOL
++  return 1;
++#endif
++  return workers_.size();
++}
+ 
+ template <class func_t, class... args_t>
+ auto ThreadPool::AddTask(func_t&& f, args_t&&... args)
+@@ -375,6 +385,17 @@ auto ThreadPool::AddTask(func_t&& f, args_t&&... args)
+ 
+   std::shared_future<return_t> result = task->get_future().share();
+ 
++#ifdef COLMAP_INLINE_THREAD_POOL
++  // The task's exception surfaces through the future and Wait(), as with
++  // worker threads.
++  (*task)();
++  {
++    std::unique_lock<std::mutex> lock(mutex_);
++    finished_task_checkers_.push_back([result]() { result.get(); });
++  }
++  return result;
++#endif
++
+   {
+     std::unique_lock<std::mutex> lock(mutex_);
+     if (stopped_) {
