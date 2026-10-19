@@ -29,7 +29,7 @@ jobs:
       # A clean wasm build (emsdk, Ceres, COLMAP) takes ~10 min, so it only runs
       # when the native sources, patches or build scripts change.
       - id: wasm
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: wasm
           key: wasm-${{ hashFiles('scripts/build-wasm.mjs', 'native/**') }}
@@ -38,7 +38,7 @@ jobs:
         run: sudo apt-get install -y --no-install-recommends libboost-dev && npm run build:wasm
 
       - if: steps.wasm.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: wasm
           key: ${{ steps.wasm.outputs.cache-primary-key }}
