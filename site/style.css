@@ -42,7 +42,10 @@ code, pre { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0
 nav { display: flex; gap: 1.1rem; flex-wrap: wrap; }
 nav a { color: var(--muted); font-weight: 500; }
 nav a:hover { color: var(--text); text-decoration: none; }
-nav a.gh { color: var(--text); }
+nav a.gh { color: var(--text); display: inline-flex; align-items: center; gap: 0.4rem; }
+.icon { width: 1.1em; height: 1.1em; flex: none; fill: currentColor; }
+.icon.npm { fill: #cb3837; }
+.btn .icon { width: 1.15em; height: 1.15em; }
 
 main { max-width: 1120px; margin: 0 auto; padding: 0 1rem; }
 section { padding: 4.5rem 0 1rem; }
@@ -158,5 +161,6 @@ footer { max-width: 1120px; margin: 4rem auto 0; padding: 2rem 1rem 3rem; border
   .brand { white-space: nowrap; }
   nav { gap: 0.7rem; font-size: 0.85rem; }
   nav a:not(.gh):not([href="#demo"]) { display: none; }
+  nav a.gh span { display: none; }
   .viewer { min-height: 380px; }
 }
