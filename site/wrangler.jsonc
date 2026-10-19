@@ -1,0 +1,9 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  // The demo site: static assets only (`npm run site:build` → site-dist/).
+  "name": "colmap-wasm-site",
+  "compatibility_date": "2026-10-10",
+  "assets": { "directory": "../site-dist", "not_found_handling": "404-page" },
+  "routes": [{ "pattern": "colmap.wasm.obraia.dev", "custom_domain": true }],
+  "workers_dev": false
+}

@@ -5,7 +5,7 @@
   "license": "BSD-3-Clause",
   "author": "Bryan Diniz",
   "repository": "github:obraia/colmap-wasm",
-  "homepage": "https://github.com/obraia/colmap-wasm#readme",
+  "homepage": "https://colmap.wasm.obraia.dev",
   "bugs": "https://github.com/obraia/colmap-wasm/issues",
   "keywords": [
     "colmap",
@@ -39,12 +39,19 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --test test/*.test.ts",
     "example": "vite examples/browser",
-    "prepack": "node -e \"for (const f of ['wasm/colmap.wasm','dist/index.js']) if (!require('fs').existsSync(f)) { console.error('missing ' + f + ': run build:wasm and build first'); process.exit(1) }\""
+    "prepack": "node -e \"for (const f of ['wasm/colmap.wasm','dist/index.js']) if (!require('fs').existsSync(f)) { console.error('missing ' + f + ': run build:wasm and build first'); process.exit(1) }\"",
+    "site:dev": "npm run build && vite --config site/vite.config.ts",
+    "site:build": "npm run build && vite build --config site/vite.config.ts",
+    "site:deploy": "npm run site:build && wrangler deploy --config site/wrangler.jsonc"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
+    "@types/three": "^0.170.0",
     "@webgpu/types": "^0.1.60",
+    "fflate": "^0.8.2",
+    "three": "^0.170.0",
     "typescript": "^5.9.0",
-    "vite": "^7.1.0"
+    "vite": "^7.1.0",
+    "wrangler": "^4.149.0"
   }
 }

@@ -49,6 +49,7 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: npx tsc -p site/tsconfig.json
       - run: npm pack --dry-run
 
       # Tags vX.Y.Z publish to npm (with provenance) when the NPM_TOKEN secret is set.

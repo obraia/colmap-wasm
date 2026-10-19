@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>colmap-wasm · COLMAP in the browser</title>
+    <meta name="description" content="An unofficial WebAssembly build of COLMAP 4.2.1: SIFT, geometric verification, view-graph calibration and the global mapper, running in your browser with SIFT matching on WebGPU." />
+    <meta property="og:title" content="colmap-wasm · COLMAP in the browser" />
+    <meta property="og:description" content="Camera poses and a sparse point cloud from your photos or video, computed by COLMAP itself, without a server." />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <header class="top">
+      <a class="brand" href="#top"><span class="logo" aria-hidden="true"></span>colmap-wasm</a>
+      <nav>
+        <a href="#demo">Demo</a>
+        <a href="#how">How it works</a>
+        <a href="#fidelity">Fidelity</a>
+        <a href="#use">Use it</a>
+        <a class="gh" href="https://github.com/obraia/colmap-wasm">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <p class="eyebrow">Unofficial WebAssembly build of COLMAP 4.2.1</p>
+        <h1>COLMAP, running in your browser.</h1>
+        <p class="lead">
+          Camera poses and a sparse point cloud from your photos or video, computed by
+          <a href="https://colmap.github.io">COLMAP</a>'s own SIFT and global mapper compiled to WebAssembly,
+          with SIFT matching on the GPU. Nothing is uploaded: it all runs on this page.
+        </p>
+        <div class="cta">
+          <a class="btn primary" href="#demo">Try it with your frames</a>
+          <a class="btn" href="https://github.com/obraia/colmap-wasm">Source on GitHub</a>
+          <a class="btn" href="https://www.npmjs.com/package/colmap-wasm"><code>npm i colmap-wasm</code></a>
+        </div>
+        <p class="madefor">
+          Built for <a href="https://orbit.gausify.com">Gausify Orbit</a>, which turns orbit videos into 3D Gaussian Splats in the browser.
+        </p>
+      </section>
+
+      <section id="demo" class="demo">
+        <div class="section-head">
+          <h2>Demo</h2>
+          <p>Drop a video or a set of frames of the same size. A video is sampled into evenly spaced frames. Or generate a synthetic orbit to see it work right away.</p>
+        </div>
+        <div id="gpu-warning" class="warning" hidden>
+          This browser has no WebGPU, which the SIFT matching needs. Try a recent Chrome, Edge or Safari.
+        </div>
+        <div class="demo-grid">
+          <div class="panel controls">
+            <label id="drop" class="drop" tabindex="0">
+              <input id="files" type="file" accept="video/*,image/*" multiple hidden />
+              <strong>Drop a video or frames here</strong>
+              <span>or click to choose · MP4, MOV, WebM, JPG, PNG</span>
+            </label>
+            <button id="sample" class="btn small">Generate a synthetic orbit</button>
+            <div id="input-info" class="info"></div>
+            <div id="thumbs" class="thumbs"></div>
+            <fieldset id="options">
+              <label class="row" id="frames-row">Frames from the video <input id="frames" type="number" min="12" max="200" value="60" /></label>
+              <label class="row"><input id="ordered" type="checkbox" checked /> Ordered sequence (video frames)</label>
+              <label class="row indent">Neighbours matched <input id="window" type="number" min="2" max="40" value="10" /></label>
+              <label class="row indent"><input id="loop" type="checkbox" /> Closed orbit (360°)</label>
+              <label class="row">Max frame side <input id="maxside" type="number" min="480" max="3200" step="160" value="1280" /> px</label>
+            </fieldset>
+            <button id="run" class="btn primary wide" disabled>Estimate cameras</button>
+            <div class="stages">
+              <div class="stage" data-stage="frames"><span>Frames</span><div class="bar"><i></i></div></div>
+              <div class="stage" data-stage="features"><span>SIFT</span><div class="bar"><i></i></div></div>
+              <div class="stage" data-stage="matching"><span>Matching</span><div class="bar"><i></i></div></div>
+              <div class="stage" data-stage="mapping"><span>Mapping</span><div class="bar"><i></i></div></div>
+            </div>
+          </div>
+          <div class="panel viewer">
+            <canvas id="view"></canvas>
+            <div id="view-empty" class="view-empty">Cameras and points appear here.</div>
+            <div id="stats" class="stats" hidden></div>
+            <div class="view-actions">
+              <button id="download" class="btn small" disabled>Download sparse/0 (.zip)</button>
+            </div>
+          </div>
+        </div>
+        <details class="log">
+          <summary>COLMAP log</summary>
+          <pre id="log"></pre>
+        </details>
+      </section>
+
+      <section id="how" class="how">
+        <div class="section-head">
+          <h2>How it works</h2>
+          <p>The same pipeline as <code>colmap feature_extractor</code> → <code>matches_importer</code> → <code>geometric_verifier</code> → <code>view_graph_calibrator</code> → <code>global_mapper</code>, split across the browser's threads and GPU.</p>
+        </div>
+        <div class="pipeline">
+          <div class="step"><b>SIFT extraction</b><span>COLMAP's CPU SIFT (VLFeat)</span><em>Web Workers · wasm</em></div>
+          <div class="arrow">→</div>
+          <div class="step gpu"><b>SIFT matching</b><span>brute force, ratio + cross-check</span><em>WebGPU compute</em></div>
+          <div class="arrow">→</div>
+          <div class="step"><b>Verification</b><span>F / E / H RANSAC per pair</span><em>Worker · wasm</em></div>
+          <div class="arrow">→</div>
+          <div class="step"><b>View-graph calibration</b><span>focal from the pairs</span><em>Worker · wasm</em></div>
+          <div class="arrow">→</div>
+          <div class="step"><b>Global mapper</b><span>rotation averaging, global positioning, bundle adjustment</span><em>Worker · wasm · Ceres</em></div>
+        </div>
+
+        <div class="cards">
+          <article>
+            <h3>What was compiled</h3>
+            <p>
+              Only the parts of COLMAP 4.2.1 this pipeline needs: <code>util</code>, <code>math</code>, <code>geometry</code>,
+              <code>sensor</code>, <code>scene</code>, <code>optim</code>, <code>estimators</code>, <code>sfm</code>,
+              <code>feature</code> and the global pipeline controller, built with Emscripten for wasm32, single-threaded.
+            </p>
+            <p>
+              Dependencies built the same way: Eigen 3.4, Ceres 2.2 with Eigen's sparse solvers (no SuiteSparse), glog,
+              PoseLib and SQLite (an in-memory database, as COLMAP expects one). The module is 7&nbsp;MB, 2.1&nbsp;MB gzipped.
+            </p>
+          </article>
+          <article>
+            <h3>What had to change</h3>
+            <ul>
+              <li><a href="https://github.com/obraia/colmap-wasm/blob/main/native/patches/colmap-no-cholmod.patch">No CHOLMOD</a>: Eigen's <code>SimplicialLLT</code> takes SuiteSparse's place in the rotation averaging.</li>
+              <li><a href="https://github.com/obraia/colmap-wasm/blob/main/native/patches/colmap-inline-thread-pool.patch">No threads</a>: COLMAP's <code>ThreadPool</code> runs each task when it is added; parallelism comes from Web Workers instead.</li>
+              <li>No OpenMP (a single-thread <code>omp.h</code>), no OpenImageIO (the browser decodes images), no faiss (matching moved to the GPU).</li>
+              <li>A small <a href="https://github.com/obraia/colmap-wasm/blob/main/native/entry/web.cc">C API</a> that the worker calls: extract one image, or map a whole set.</li>
+            </ul>
+          </article>
+          <article>
+            <h3>Matching on the GPU</h3>
+            <p>
+              COLMAP's exact CPU matcher takes minutes for a hundred frames on one thread. The WebGPU shader follows the
+              same rule: integer dot products between the uint8 descriptors, the strictly larger one wins in index order,
+              then the angle (0.7) and ratio (0.8) tests in float32 and the cross-check. Same matches, in seconds.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="fidelity" class="fidelity">
+        <div class="section-head">
+          <h2>Does it give COLMAP's answer?</h2>
+          <p>Compared with a native COLMAP 4.2.1 on the same images:</p>
+        </div>
+        <table>
+          <thead><tr><th>Stage</th><th>Agreement</th></tr></thead>
+          <tbody>
+            <tr><td>SIFT keypoints</td><td>within ~1e-5 px; descriptors identical</td></tr>
+            <tr><td>Matches (WebGPU)</td><td>identical to <code>cpu_brute_force_matcher</code>, pair by pair</td></tr>
+            <tr><td>Geometric verification</td><td>identical with the same seed</td></tr>
+            <tr><td>Global mapper</td><td>same intermediate counts; poses equal up to floating point</td></tr>
+          </tbody>
+        </table>
+        <p class="note">
+          Natively, <code>view_graph_calibrator</code> runs unseeded on several threads, so two native runs on the same input can
+          differ slightly. Here every stage is seeded: the same images always give the same cameras.
+        </p>
+        <div class="perf">
+          <div><b>~20 s</b><span>SIFT, 90 frames of 1024×1280, 5 workers</span></div>
+          <div><b>~5 s</b><span>matching 900 pairs on the GPU</span></div>
+          <div><b>~45 s</b><span>verification, calibration and global mapper</span></div>
+        </div>
+        <p class="note">Apple M4, Chrome. Peak memory is a few hundred MB per SIFT worker.</p>
+      </section>
+
+      <section id="use" class="use">
+        <div class="section-head">
+          <h2>Use it in your app</h2>
+        </div>
+        <pre class="code"><code>npm install colmap-wasm</code></pre>
+        <pre class="code"><code>import { estimatePoses, sequentialPairs, toColmapBinary } from "colmap-wasm";
+
+const { reconstruction, features } = await estimatePoses(files, {
+  pairs: sequentialPairs(files.length, { window: 8, loop: true }),
+  onProgress: ({ stage, done, total }) =&gt; console.log(stage, done, total),
+});
+
+// cameras.bin, images.bin, points3D.bin for any COLMAP-compatible tool
+const sparse = toColmapBinary(reconstruction, features);</code></pre>
+        <p>
+          The API, build instructions and the patches are in the
+          <a href="https://github.com/obraia/colmap-wasm">repository</a>. With Vite, add
+          <code>optimizeDeps: { exclude: ["colmap-wasm"] }</code>.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        colmap-wasm is BSD-3-Clause and not affiliated with or endorsed by the COLMAP authors.
+        COLMAP is © ETH Zurich and UNC Chapel Hill, BSD-3-Clause;
+        see <a href="https://github.com/obraia/colmap-wasm/blob/main/THIRD_PARTY_NOTICES.md">third-party notices</a>.
+      </p>
+      <p>Made for <a href="https://orbit.gausify.com">Gausify Orbit</a> · <a href="https://github.com/obraia/colmap-wasm">GitHub</a> · <a href="https://www.npmjs.com/package/colmap-wasm">npm</a></p>
+    </footer>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

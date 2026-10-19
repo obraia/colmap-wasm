@@ -4,3 +4,5 @@ dist
 wasm
 .colmap
 *.tgz
+site-dist
+.wrangler

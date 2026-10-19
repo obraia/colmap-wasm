@@ -5,6 +5,10 @@
 view-graph calibration and global mapper (GLOMAP), plus exact SIFT matching on
 WebGPU. Give it images, get cameras and a sparse point cloud, without a server.
 
+**Live demo and write-up: [colmap.wasm.obraia.dev](https://colmap.wasm.obraia.dev)**
+(drop a video or frames, see the cameras and points in 3D, download the
+COLMAP model).
+
 Not affiliated with or endorsed by the COLMAP authors. The goal is to offer
 this upstream; until then, issues go here.
 
@@ -87,7 +91,12 @@ npm run build:wasm   # emsdk, Eigen, Ceres, glog, PoseLib, SQLite, COLMAP subset
 npm run build        # TypeScript → dist/
 npm test
 npm run example      # examples/browser (pick images, download sparse/0)
+npm run site:dev     # the demo site (site/), as on colmap.wasm.obraia.dev
 ```
+
+The demo site is deployed to Cloudflare Workers static assets with
+`npm run site:deploy` (`site/wrangler.jsonc`, custom domain
+`colmap.wasm.obraia.dev`).
 
 `build:wasm` needs git, curl, Python ≥ 3.10 and the Boost headers
 (`brew install boost` or `apt install libboost-dev`). Everything it downloads
