@@ -10,6 +10,18 @@ import type { FeaturesMessage, MapMessage, WorkerMessage, WorkerRequest } from "
 const MAX_IMAGE_SIZE = 3200;
 
 const post = (m: WorkerMessage, transfer: Transferable[] = []) => (self as unknown as Worker).postMessage(m, transfer);
+const describe = (e: unknown) => (e instanceof Error ? `${e.name}: ${e.message}` : String(e));
+
+// Errors outside a request (or thrown asynchronously) would otherwise reach the
+// page as an error event without a message.
+self.addEventListener("error", (e) => {
+  post({ kind: "error", text: describe(e.error ?? e.message) });
+  e.preventDefault();
+});
+self.addEventListener("unhandledrejection", (e) => {
+  post({ kind: "error", text: describe(e.reason) });
+  e.preventDefault();
+});
 
 // Mapping logs are useful (stage timings, camera counts); extraction logs are noise.
 let forwardLogs = false;
@@ -17,6 +29,8 @@ const module: Promise<ColmapModule> = createModule({
   print: (s) => forwardLogs && post({ kind: "log", text: s }),
   // glog lines: "I20261019 07:45:00.123 1 file.cc:123] text"
   printErr: (s) => forwardLogs && post({ kind: "log", text: s.replace(/^[IWEF]\d{8} [\d:.]+\s+\d+ [^\]]+\] /, "") }),
+  // COLMAP CHECK failures and wasm traps end here (the call then throws).
+  onAbort: (what) => post({ kind: "log", text: `COLMAP aborted: ${what}` }),
 });
 
 function check(m: ColmapModule, r: number) {
@@ -119,6 +133,7 @@ function map(m: ColmapModule, req: Extract<WorkerRequest, { kind: "map" }>): Map
       }
     }
     const registered = check(m, m._cw_map_run(req.seed));
+    post({ kind: "log", text: `wasm memory: ${(m.HEAPU8.length / 2 ** 20).toFixed(0)} MB` });
     const nPts = m._cw_res_num_points();
     return {
       kind: "model",
@@ -146,6 +161,6 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
       post(r, [r.camera.buffer, r.poses.buffer, r.points.buffer, r.tracks.buffer]);
     }
   } catch (e) {
-    post({ kind: "error", text: e instanceof Error ? e.message : String(e) });
+    post({ kind: "error", text: describe(e) });
   }
 };

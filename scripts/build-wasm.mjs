@@ -82,6 +82,7 @@ writeFileSync(
 export default function createModule(options?: {
   print?: (s: string) => void;
   printErr?: (s: string) => void;
+  onAbort?: (what: unknown) => void;
   locateFile?: (path: string, prefix: string) => string;
 }): Promise<ColmapModule>;
 `,

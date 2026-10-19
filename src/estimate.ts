@@ -24,7 +24,13 @@ function request<T extends WorkerMessage>(w: Worker, req: WorkerRequest, log?: (
       if (m.kind === "error") reject(new Error(`COLMAP: ${m.text}`));
       else resolve(m as T);
     };
-    w.onerror = (e) => reject(new Error(`COLMAP worker: ${e.message}`));
+    // A worker the browser stops (often for lack of memory) gets no message.
+    w.onerror = (e) => {
+      e.preventDefault();
+      const where = e.filename ? ` (${e.filename}:${e.lineno})` : "";
+      reject(new Error(`COLMAP worker stopped: ${e.message || "no message from the browser; it may have run out of memory"}${where}`));
+    };
+    w.onmessageerror = () => reject(new Error("COLMAP worker: a message could not be read"));
     w.postMessage(req);
   });
 }
