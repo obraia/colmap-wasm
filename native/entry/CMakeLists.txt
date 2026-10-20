@@ -41,6 +41,8 @@ target_link_options(colmap_gm PRIVATE -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=4
   -sEXIT_RUNTIME=1 -sSTACK_SIZE=8MB -fexceptions)
 
 add_executable(colmap_sift sift_main.cc)
+# Node tools are CommonJS: .cjs, so a "type": "module" package.json doesn't turn them into ES modules.
+set_target_properties(colmap_gm colmap_sift PROPERTIES SUFFIX ".cjs")
 target_link_libraries(colmap_sift colmap_wasm)
 target_link_options(colmap_sift PRIVATE -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=4GB -sNODERAWFS=1
   -sEXIT_RUNTIME=1 -sSTACK_SIZE=8MB -fexceptions)

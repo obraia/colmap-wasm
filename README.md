@@ -98,6 +98,9 @@ The demo site is deployed to Cloudflare Workers static assets with
 `npm run site:deploy` (`site/wrangler.jsonc`, custom domain
 `colmap.wasm.obraia.dev`).
 
+To check the build against a native COLMAP on your own images, stage by
+stage, see [tools/compare](tools/compare/README.md).
+
 `build:wasm` needs git, curl, Python ≥ 3.10 and the Boost headers
 (`brew install boost` or `apt install libboost-dev`). Everything it downloads
 is pinned (git commits, SHA-256 for archives) and goes to `.colmap/`.
@@ -113,8 +116,9 @@ is pinned (git commits, SHA-256 for archives) and goes to `.colmap/`.
   the browser; a minimal `Bitmap`), no faiss (matching is brute force on the
   GPU), no METIS, CUDA, GUI, MVS or ONNX features.
 - [`native/entry/web.cc`](native/entry/web.cc) is the C API the worker calls;
-  `main.cc` and `sift_main.cc` build Node tools for comparisons with a native
-  COLMAP.
+  `main.cc` and `sift_main.cc` build Node tools (`colmap_gm.cjs`,
+  `colmap_sift.cjs`) for comparisons with a native COLMAP (see
+  [tools/compare](tools/compare/README.md)).
 
 ## License
 
